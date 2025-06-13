@@ -1,11 +1,9 @@
-// services/product_service.dart
-import 'dart:convert';
+// services/product_service.dart - VERSION CORRIGÉE SANS ERREURS ✅
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:flutter/foundation.dart'; // ← AJOUTÉ pour debugPrint
 import '../models/product_model.dart';
-import '../models/product_image_model.dart';          // ← AJOUTEZ CETTE LIGNE
-import '../models/product_specification_model.dart';  // ← AJOUTEZ CETTE LIGNE
+import '../models/product_image_model.dart';
+import '../models/product_specification_model.dart';
 import 'api_service.dart';
 
 class ProductService {
@@ -63,6 +61,7 @@ class ProductService {
     required String nom,
     required String description,
     required String reference,
+    int? categoryId,
     List<Map<String, dynamic>> images = const [],
     List<Map<String, dynamic>> specifications = const [],
   }) async {
@@ -73,6 +72,7 @@ class ProductService {
         'reference': reference,
         'images': images,
         'specifications': specifications,
+        if (categoryId != null) 'categorie': categoryId,
       };
 
       final response = await _apiService.post('/produits/', productData);
@@ -82,12 +82,49 @@ class ProductService {
     }
   }
 
-  /// Upload d'image et récupération de l'URL
+  /// ✅ NOUVELLE MÉTHODE : Supprimer un produit
+  Future<bool> deleteProduct(int productId) async {
+    try {
+      await _apiService.delete('/produits/$productId/');
+      return true;
+    } catch (e) {
+      throw Exception('Erreur lors de la suppression du produit: $e');
+    }
+  }
+
+  /// ✅ NOUVELLE MÉTHODE : Mettre à jour un produit
+  Future<Product> updateProduct(int productId, {
+    String? nom,
+    String? description,
+    String? reference,
+    int? categoryId,
+  }) async {
+    try {
+      final updateData = <String, dynamic>{};
+      if (nom != null) updateData['nom'] = nom;
+      if (description != null) updateData['description'] = description;
+      if (reference != null) updateData['reference'] = reference;
+      if (categoryId != null) updateData['categorie'] = categoryId;
+
+      final response = await _apiService.put('/produits/$productId/', updateData);
+      return Product.fromJson(response);
+    } catch (e) {
+      throw Exception('Erreur lors de la mise à jour du produit: $e');
+    }
+  }
+
+  /// ✅ Upload d'image avec debug amélioré (UNIQUE)
   Future<String> uploadImage(File imageFile) async {
     try {
+      debugPrint('📸 Upload image: ${imageFile.path}');
       final response = await _apiService.uploadImage('/upload-image/', imageFile);
-      return response['url'];
+      
+      final imageUrl = response['url'];
+      debugPrint('🔗 URL reçue: $imageUrl');
+      
+      return imageUrl;
     } catch (e) {
+      debugPrint('❌ Erreur upload: $e');
       throw Exception('Erreur lors de l\'upload de l\'image: $e');
     }
   }

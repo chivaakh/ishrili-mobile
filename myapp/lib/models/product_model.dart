@@ -1,5 +1,5 @@
-// models/product_model.dart
-import 'category_model.dart';
+// models/product_model.dart - IMPORT CATEGORY CORRIGÉ
+import 'category_model.dart' as models; // ← AJOUT du préfixe
 import 'vendor_model.dart';
 import 'product_image_model.dart';
 import 'product_specification_model.dart';
@@ -9,7 +9,7 @@ class Product {
   final String reference;
   final String nom;
   final String description;
-  final Category? categorie;
+  final models.Category? categorie; // ← Utilisation du préfixe
   final Vendor? commercant;
   final List<ProductImage> images;
   final List<ProductSpecification> specifications;
@@ -32,7 +32,7 @@ class Product {
       nom: json['nom'],
       description: json['description'],
       categorie: json['categorie'] != null 
-          ? Category.fromJson(json['categorie']) 
+          ? models.Category.fromJson(json['categorie']) // ← Utilisation du préfixe
           : null,
       commercant: json['commercant'] != null 
           ? Vendor.fromJson(json['commercant']) 

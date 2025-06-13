@@ -15,7 +15,7 @@ class VendorProvider with ChangeNotifier {
   int get pendingOrders => _pendingOrders;
 
   // Charger les statistiques
-  Future<void> loadStatistics() async {
+  Future<void> loadStatistics({required bool refresh}) async {
     // TODO: Connecter à votre API pour récupérer les vraies stats
     // Pour l'instant, on simule avec des données
     _totalProducts = 2; // Vos produits existants
