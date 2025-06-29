@@ -22,8 +22,10 @@ class ApiClient {
 
 instance = Dio(BaseOptions(
   baseUrl: Platform.isAndroid
-      ? 'http://10.0.2.2:8000'
-      : 'http://127.0.0.1:8000', // ← pour Linux Desktop, Mac, Windows
+          // sur vrai appareil Android, mettre l’IP de ton PC sur le réseau (ex. 192.168.100.79)
+          ? 'http://192.168.100.79:8000'
+          // sur iOS/simulateur et desktop
+          : 'http://127.0.0.1:8000',
   connectTimeout: const Duration(milliseconds: 5000),
   receiveTimeout: const Duration(milliseconds: 3000),
 ))
