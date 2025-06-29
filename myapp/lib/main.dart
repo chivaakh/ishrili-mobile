@@ -1,4 +1,4 @@
-// main.dart - VERSION ÉLÉGANTE AVEC VOS COULEURS 🌙
+// main.dart - VERSION DIRECTE DASHBOARD 🌙
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,8 +8,21 @@ import 'providers/product_provider.dart';
 import 'providers/vendor_provider.dart';
 import 'providers/category_provider.dart';
 import 'providers/order_provider.dart';
+import 'providers/auth_provider.dart';
 
-void main() {
+// Screens
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/signup_screen.dart';
+import 'screens/auth/forgot_password_screen.dart';
+import 'screens/auth/reset_password_screen.dart';
+import 'screens/vendor/vendor_main_screen.dart';
+
+// Services
+import 'services/api_client.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ApiClient.init(); 
   runApp(const MyApp());
 }
 
@@ -30,6 +43,7 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..checkLogin()),
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => VendorProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
@@ -137,7 +151,23 @@ class MyApp extends StatelessWidget {
           ),
         ),
         
-        home: const SplashScreen(),
+        // ✅ NAVIGATION DIRECTE VERS LE DASHBOARD
+        // Cette modification affiche directement le VendorMainScreen
+        // qui contient votre dashboard vendeur
+        home: const VendorMainScreen(),
+        
+        // ✅ Routes pour navigation future
+        routes: {
+          '/login': (context) => LoginScreen(),
+          '/signup': (context) => SignupScreen(),
+          '/forgot-password': (context) => ForgotPasswordScreen(),
+          '/reset-password': (context) {
+            final token = ModalRoute.of(context)!.settings.arguments as String;
+            return ResetPasswordScreen(token: token);
+          },
+          '/vendor': (context) => const VendorMainScreen(),
+          '/splash': (context) => const SplashScreen(),
+        },
       ),
     );
   }

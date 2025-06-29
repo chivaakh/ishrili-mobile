@@ -1,11 +1,11 @@
-// screens/vendor/add_product_screen.dart - IMPORT CATEGORY CORRIGÉ
+// screens/vendor/add_product_screen.dart - UPLOAD IMMÉDIAT DES IMAGES ✅
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../providers/product_provider.dart';
 import '../../providers/category_provider.dart';
-import '../../models/category_model.dart' as models; // ← AJOUT du préfixe
+import '../../models/category_model.dart' as models;
 
 class AddProductScreen extends StatefulWidget {
   const AddProductScreen({super.key});
@@ -26,14 +26,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _prixController = TextEditingController();
   final _stockController = TextEditingController();
   
-  List<File> _selectedImages = [];
+  // ✅ CHANGEMENT : Stocker les URLs au lieu des fichiers
+  List<Map<String, dynamic>> _uploadedImages = [];
   bool _isLoading = false;
-  models.Category? _selectedCategory; // ← Utilisation du préfixe
+  bool _isUploadingImage = false; // ✅ NOUVEAU : État d'upload d'image
+  models.Category? _selectedCategory;
 
   @override
   void initState() {
     super.initState();
-    // Charger les catégories au démarrage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CategoryProvider>().loadCategories();
     });
@@ -105,7 +106,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       hint: 'Ex: REF-001',
                     ),
                     
-                    // ✅ AJOUT : Sélection de catégorie
                     _buildCategorySelector(),
                     
                     _buildTextField(
@@ -187,7 +187,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  // ✅ Widget de sélection de catégorie avec préfixe
   Widget _buildCategorySelector() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -227,7 +226,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<models.Category>( // ← Utilisation du préfixe
+                  child: DropdownButton<models.Category>(
                     value: _selectedCategory,
                     isExpanded: true,
                     hint: Text(
@@ -235,12 +234,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       style: TextStyle(color: Colors.grey[400]),
                     ),
                     items: categoryProvider.categories
-                        .map((category) => DropdownMenuItem<models.Category>( // ← Utilisation du préfixe
+                        .map((category) => DropdownMenuItem<models.Category>(
                               value: category,
                               child: Text(category.nom),
                             ))
                         .toList(),
-                    onChanged: (models.Category? newCategory) { // ← Utilisation du préfixe
+                    onChanged: (models.Category? newCategory) {
                       setState(() {
                         _selectedCategory = newCategory;
                       });
@@ -326,17 +325,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
+  // ✅ SECTION IMAGES MODIFIÉE POUR AFFICHER LES IMAGES UPLOADÉES
   Widget _buildImageSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_selectedImages.isNotEmpty)
+        if (_uploadedImages.isNotEmpty)
           SizedBox(
             height: 100,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: _selectedImages.length,
+              itemCount: _uploadedImages.length,
               itemBuilder: (context, index) {
+                final imageData = _uploadedImages[index];
                 return Container(
                   margin: const EdgeInsets.only(right: 12),
                   width: 100,
@@ -349,18 +350,35 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImages[index],
+                        child: Image.network(
+                          imageData['url_image'],
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.error),
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                        loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            );
+                          },
                         ),
                       ),
                       Positioned(
                         top: 6,
                         right: 6,
                         child: GestureDetector(
-                          onTap: () => setState(() => _selectedImages.removeAt(index)),
+                          onTap: () => setState(() => _uploadedImages.removeAt(index)),
                           child: Container(
                             padding: const EdgeInsets.all(4),
                             decoration: const BoxDecoration(
@@ -375,6 +393,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           ),
                         ),
                       ),
+                      // ✅ Badge pour indiquer l'image principale
+                      if (imageData['est_principale'] == true)
+                        Positioned(
+                          bottom: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Principal',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 );
@@ -385,12 +424,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
         const SizedBox(height: 16),
         
         GestureDetector(
-          onTap: _pickImages,
+          onTap: _isUploadingImage ? null : _pickAndUploadImages,
           child: Container(
             width: double.infinity,
             height: 120,
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: _isUploadingImage ? Colors.grey[100] : Colors.grey[50],
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: Colors.grey[300]!,
@@ -398,146 +437,193 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 width: 1,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_photo_alternate_outlined,
-                  size: 32,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _selectedImages.isEmpty 
-                      ? 'Ajouter des photos' 
-                      : 'Ajouter plus de photos',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+            child: _isUploadingImage
+                ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 8),
+                      Text(
+                        'Upload en cours...',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 32,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _uploadedImages.isEmpty 
+                            ? 'Ajouter des photos' 
+                            : 'Ajouter plus de photos',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ),
       ],
     );
   }
 
-  Future<void> _pickImages() async {
+  // ✅ NOUVELLE MÉTHODE : Sélectionner ET uploader immédiatement les images
+  Future<void> _pickAndUploadImages() async {
     final picker = ImagePicker();
     final pickedFiles = await picker.pickMultiImage();
     
     if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(pickedFiles.map((xFile) => File(xFile.path)));
-      });
+      setState(() => _isUploadingImage = true);
+      
+      try {
+        final productProvider = context.read<ProductProvider>();
+        
+        for (int i = 0; i < pickedFiles.length; i++) {
+          debugPrint('📸 Upload image ${i + 1}/${pickedFiles.length}');
+          
+          final file = File(pickedFiles[i].path);
+          final imageUrl = await productProvider.uploadProductImage(file);
+          
+          if (imageUrl != null && imageUrl.isNotEmpty) {
+            final imageData = {
+              'url_image': imageUrl,
+              'est_principale': _uploadedImages.isEmpty, // Première image = principale
+              'ordre': _uploadedImages.length,
+            };
+            
+            setState(() {
+              _uploadedImages.add(imageData);
+            });
+            
+            debugPrint('✅ Image ${i + 1} uploadée: $imageUrl');
+          } else {
+            debugPrint('❌ Échec upload image ${i + 1}');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Erreur upload image ${i + 1}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${pickedFiles.length} image(s) uploadée(s) avec succès'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint('❌ Erreur upload images: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur upload: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        setState(() => _isUploadingImage = false);
+      }
     }
   }
 
+  // ✅ MÉTHODE DE SAUVEGARDE SIMPLIFIÉE (plus d'upload ici)
+  Future<void> _saveProduct() async {
+    if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isLoading = true);
 
-Future<void> _saveProduct() async {
-  if (!_formKey.currentState!.validate()) return;
-
-  setState(() => _isLoading = true);
-
-  try {
-    final productProvider = context.read<ProductProvider>();
-    
-    // ✅ 1. Upload des images d'abord et DEBUG
-    List<Map<String, dynamic>> imagesList = [];
-    debugPrint('📸 Début upload de ${_selectedImages.length} images');
-    
-    for (int i = 0; i < _selectedImages.length; i++) {
-      debugPrint('📸 Upload image ${i + 1}/${_selectedImages.length}');
+    try {
+      final productProvider = context.read<ProductProvider>();
       
-      final imageUrl = await productProvider.uploadProductImage(_selectedImages[i]);
-      debugPrint('🔗 URL reçue pour image ${i + 1}: $imageUrl');
-      
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        final imageData = {
-          'url_image': imageUrl,
-          'est_principale': i == 0, // Première image = principale
-          'ordre': i,
+      // ✅ Les images sont déjà uploadées, on les utilise directement
+      debugPrint('📸 Images déjà uploadées: ${_uploadedImages.length}');
+      for (var img in _uploadedImages) {
+        debugPrint('🔗 Image: ${img['url_image']}');
+      }
+
+      // ✅ Créer la spécification
+      List<Map<String, dynamic>> specifications = [];
+      if (_specNomController.text.isNotEmpty && _prixController.text.isNotEmpty) {
+        final specData = {
+          'nom': _specNomController.text,
+          'description': _specDescController.text,
+          'prix': double.parse(_prixController.text),
+          'quantite_stock': int.parse(_stockController.text.isEmpty ? '0' : _stockController.text),
+          'est_defaut': true,
+          'reference_specification': '${_referenceController.text}-001',
         };
-        imagesList.add(imageData);
-        debugPrint('✅ Image ${i + 1} ajoutée: $imageData');
+        specifications.add(specData);
+        debugPrint('📋 Spécification créée: $specData');
+      }
+
+      // ✅ Créer le produit avec les images déjà uploadées
+      debugPrint('🏗️ Création du produit...');
+      final success = await productProvider.createProduct(
+        nom: _nomController.text,
+        description: _descriptionController.text,
+        reference: _referenceController.text,
+        categoryId: _selectedCategory?.id,
+        specifications: specifications,
+        images: _uploadedImages, // ✅ Images déjà uploadées avec URLs
+      );
+
+      if (success) {
+        if (mounted) {
+          debugPrint('✅ Produit créé avec succès !');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Produit créé avec succès !'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context);
+        }
       } else {
-        debugPrint('❌ Échec upload image ${i + 1}');
-      }
-    }
-
-    debugPrint('📸 Total images uploadées: ${imagesList.length}');
-
-    // ✅ 2. Créer la spécification avec DEBUG
-    List<Map<String, dynamic>> specifications = [];
-    if (_specNomController.text.isNotEmpty && _prixController.text.isNotEmpty) {
-      final specData = {
-        'nom': _specNomController.text,
-        'description': _specDescController.text,
-        'prix': double.parse(_prixController.text),
-        'quantite_stock': int.parse(_stockController.text.isEmpty ? '0' : _stockController.text),
-        'est_defaut': true,
-        'reference_specification': '${_referenceController.text}-001',
-      };
-      specifications.add(specData);
-      debugPrint('📋 Spécification créée: $specData');
-    }
-
-    // ✅ 3. Créer le produit avec DEBUG
-    debugPrint('🏗️ Création du produit...');
-    debugPrint('📦 Nom: ${_nomController.text}');
-    debugPrint('📦 Images: ${imagesList.length}');
-    debugPrint('📦 Spécifications: ${specifications.length}');
-    debugPrint('📦 Catégorie ID: ${_selectedCategory?.id}');
-
-    final success = await productProvider.createProduct(
-      nom: _nomController.text,
-      description: _descriptionController.text,
-      reference: _referenceController.text,
-      categoryId: _selectedCategory?.id,
-      specifications: specifications,
-      images: imagesList, // ← IMPORTANT : Passer les images
-    );
-
-    if (success) {
-      if (mounted) {
-        debugPrint('✅ Produit créé avec succès !');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Produit créé avec succès !'),
-            backgroundColor: Colors.green,
-          ),
+        if (mounted) {
+          debugPrint('❌ Échec création produit: ${productProvider.errorMessage}');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur: ${productProvider.errorMessage}'),
+              backgroundColor: Colors.red,
+            ),
+          
         );
-        Navigator.pop(context);
+        }
       }
-    } else {
+    } catch (e) {
+      debugPrint('❌ Exception lors de la création: $e');
       if (mounted) {
-        debugPrint('❌ Échec création produit: ${productProvider.errorMessage}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur: ${productProvider.errorMessage}'),
+            content: Text('Erreur: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    debugPrint('❌ Exception lors de la création: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   @override
   void dispose() {

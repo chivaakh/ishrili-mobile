@@ -1,9 +1,11 @@
-// services/api_service.dart - VERSION FINALE SANS WARNINGS ✅
+// services/api_service.dart - VERSION FINALE CORRIGÉE ✅
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser; // ✅ AJOUT pour MediaType
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart'; // ← POUR debugPrint
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as path;
 import '../config/api_config.dart';
 
 class ApiService {
@@ -115,19 +117,63 @@ class ApiService {
     }
   }
 
-  // ✅ Upload d'image SANS authentification forcée
+  // ✅ UPLOAD IMAGE CORRIGÉ AVEC VALIDATION
   Future<Map<String, dynamic>> uploadImage(String endpoint, File imageFile) async {
     try {
       debugPrint('📸 Upload image vers: ${ApiConfig.baseUrl}$endpoint');
       debugPrint('📁 Fichier: ${imageFile.path}');
-      debugPrint('📏 Taille: ${imageFile.lengthSync()} bytes');
       
+      // ✅ Vérifier que le fichier existe
+      if (!await imageFile.exists()) {
+        throw Exception('Le fichier image n\'existe pas');
+      }
+      
+      // ✅ Obtenir la taille du fichier
+      final fileSize = await imageFile.length();
+      debugPrint('📏 Taille: $fileSize bytes');
+      
+      // ✅ Vérifier l'extension du fichier
+      final fileExtension = path.extension(imageFile.path).toLowerCase();
+      debugPrint('📄 Extension: $fileExtension');
+      
+      // ✅ Vérifier que c'est une image supportée
+      final supportedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+      if (!supportedExtensions.contains(fileExtension)) {
+        throw Exception('Format d\'image non supporté: $fileExtension');
+      }
+      
+      // ✅ Déterminer le bon MIME type
+      String mimeType;
+      switch (fileExtension) {
+        case '.jpg':
+        case '.jpeg':
+          mimeType = 'image/jpeg';
+          break;
+        case '.png':
+          mimeType = 'image/png';
+          break;
+        case '.gif':
+          mimeType = 'image/gif';
+          break;
+        case '.bmp':
+          mimeType = 'image/bmp';
+          break;
+        case '.webp':
+          mimeType = 'image/webp';
+          break;
+        default:
+          mimeType = 'image/jpeg';
+      }
+      
+      debugPrint('🎨 MIME Type: $mimeType');
+      
+      // ✅ Créer la requête multipart
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${ApiConfig.baseUrl}$endpoint'),
       );
       
-      // ✅ Headers OPTIONNELS seulement
+      // ✅ Headers OPTIONNELS avec token si disponible
       final token = await _getToken();
       if (token != null && token.isNotEmpty) {
         request.headers['Authorization'] = 'Token $token';
@@ -136,12 +182,23 @@ class ApiService {
         debugPrint('🔓 Pas de token - requête sans auth');
       }
       
-      // Ajouter le fichier
-      request.files.add(
-        await http.MultipartFile.fromPath('image', imageFile.path),
+      // ✅ Ajouter le fichier avec le bon nom de champ ET le bon MIME type
+      final multipartFile = http.MultipartFile(
+        'image', // ✅ Nom du champ attendu par l'API
+        imageFile.readAsBytes().asStream(),
+        await imageFile.length(),
+        filename: path.basename(imageFile.path),
+        contentType: http_parser.MediaType.parse(mimeType), // ✅ CORRECTION: Forcer le bon MIME type
       );
-
+      
+      request.files.add(multipartFile);
+      debugPrint('📎 Fichier ajouté: ${multipartFile.filename}');
+      debugPrint('📎 Taille: ${multipartFile.length} bytes');
+      debugPrint('📎 Type: ${multipartFile.contentType}');
+      
       debugPrint('⏳ Envoi de la requête...');
+      
+      // ✅ Envoyer la requête avec timeout
       final streamedResponse = await request.send().timeout(ApiConfig.timeout);
       final response = await http.Response.fromStream(streamedResponse);
       
@@ -149,9 +206,14 @@ class ApiService {
       debugPrint('📄 Corps: ${response.body}');
       
       return _handleResponse(response);
+      
     } catch (e) {
-      debugPrint('❌ Erreur upload image: $e');
-      throw Exception('Erreur upload: $e');
+      debugPrint('❌ Exception upload image: $e');
+      if (e is Exception) {
+        rethrow;
+      } else {
+        throw Exception('Erreur lors de l\'upload: $e');
+      }
     }
   }
 
