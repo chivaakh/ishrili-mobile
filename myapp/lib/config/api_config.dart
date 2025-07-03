@@ -9,7 +9,7 @@ class ApiConfig {
       return 'https://votre-domaine.com/api';
     }
   }
-  
+
   static String get mediaUrl {
     if (isDebug) {
       return 'http://10.0.2.2:8000/media/';

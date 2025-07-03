@@ -70,12 +70,12 @@ class MyApp extends StatelessWidget {
             elevation: 0,
             systemOverlayStyle: SystemUiOverlayStyle.dark,
             titleTextStyle: TextStyle(
-              color: AppTheme.textDark,
+              color: AppTheme.textPrimary,  // ✅ Corrigé: textDark → textPrimary
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
             iconTheme: IconThemeData(
-              color: AppTheme.textDark,
+              color: AppTheme.textPrimary,  // ✅ Corrigé: textDark → textPrimary
               size: 22,
             ),
           ),
@@ -131,7 +131,7 @@ class MyApp extends StatelessWidget {
           bottomNavigationBarTheme: const BottomNavigationBarThemeData(
             backgroundColor: Colors.white,
             selectedItemColor: AppTheme.zaffre,
-            unselectedItemColor: AppTheme.textLight,
+            unselectedItemColor: AppTheme.textSecondary,  // ✅ Corrigé: textLight → textSecondary
             elevation: 0,
             type: BottomNavigationBarType.fixed,
           ),

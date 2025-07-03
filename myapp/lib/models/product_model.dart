@@ -1,5 +1,6 @@
-// models/product_model.dart - IMPORT CATEGORY CORRIGÉ
-import 'category_model.dart' as models; // ← AJOUT du préfixe
+// models/product_model.dart - VERSION CORRIGÉE ✅
+import 'package:flutter/foundation.dart'; // ← AJOUT pour debugPrint
+import 'category_model.dart' as models;
 import 'vendor_model.dart';
 import 'product_image_model.dart';
 import 'product_specification_model.dart';
@@ -9,7 +10,7 @@ class Product {
   final String reference;
   final String nom;
   final String description;
-  final models.Category? categorie; // ← Utilisation du préfixe
+  final models.Category? categorie;
   final Vendor? commercant;
   final List<ProductImage> images;
   final List<ProductSpecification> specifications;
@@ -28,22 +29,115 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'],
-      reference: json['reference'],
-      nom: json['nom'],
-      description: json['description'],
-      categorie: json['categorie'] != null 
-          ? models.Category.fromJson(json['categorie']) // ← Utilisation du préfixe
-          : null,
-      commercant: json['commercant'] != null 
-          ? Vendor.fromJson(json['commercant']) 
-          : null,
-      images: (json['images'] as List?)
-          ?.map((img) => ProductImage.fromJson(img))
-          .toList() ?? [],
-      specifications: (json['specifications'] as List?)
-          ?.map((spec) => ProductSpecification.fromJson(spec))
-          .toList() ?? [],
+      reference: json['reference'] ?? '',
+      nom: json['nom'] ?? '',
+      description: json['description'] ?? '',
+      
+      // ✅ CORRECTION: Gestion flexible des catégories
+      categorie: _parseCategory(json['categorie']),
+      
+      // ✅ CORRECTION: Gestion flexible des commercants
+      commercant: _parseVendor(json['commercant']),
+      
+      // ✅ CORRECTION: Gestion robuste des images
+      images: _parseImages(json['images']),
+      
+      // ✅ CORRECTION: Gestion robuste des spécifications
+      specifications: _parseSpecifications(json['specifications']),
     );
+  }
+
+  // ✅ MÉTHODE HELPER: Parse catégorie (peut être int, Map, ou null)
+  static models.Category? _parseCategory(dynamic categoryData) {
+    if (categoryData == null) return null;
+    
+    if (categoryData is Map<String, dynamic>) {
+      try {
+        return models.Category.fromJson(categoryData);
+      } catch (e) {
+        debugPrint('❌ Erreur parsing catégorie: $e');
+        return null;
+      }
+    } else if (categoryData is int) {
+      // Si c'est juste un ID, créer une catégorie basique
+      return models.Category(
+        id: categoryData,
+        nom: 'Catégorie #$categoryData',
+        description: '',
+      );
+    }
+    
+    return null;
+  }
+
+  // ✅ MÉTHODE HELPER: Parse vendor (peut être int, Map, ou null)
+  static Vendor? _parseVendor(dynamic vendorData) {
+    if (vendorData == null) return null;
+    
+    if (vendorData is Map<String, dynamic>) {
+      try {
+        return Vendor.fromJson(vendorData);
+      } catch (e) {
+        debugPrint('❌ Erreur parsing vendor: $e');
+        return null;
+      }
+    } else if (vendorData is int) {
+      // ✅ Créer un vendor basique avec juste l'ID
+      try {
+        return Vendor.fromId(vendorData);
+      } catch (e) {
+        debugPrint('❌ Erreur création vendor basique: $e');
+        return null;
+      }
+    }
+    
+    return null;
+  }
+
+  // ✅ MÉTHODE HELPER: Parse images de manière robuste
+  static List<ProductImage> _parseImages(dynamic imagesData) {
+    if (imagesData == null) return [];
+    
+    if (imagesData is List) {
+      return imagesData
+          .where((img) => img != null && img is Map<String, dynamic>)
+          .map((img) {
+            try {
+              return ProductImage.fromJson(img as Map<String, dynamic>);
+            } catch (e) {
+              debugPrint('❌ Erreur parsing image: $e');
+              return null;
+            }
+          })
+          .where((img) => img != null)
+          .cast<ProductImage>()
+          .toList();
+    }
+    
+    return [];
+  }
+
+  // ✅ MÉTHODE HELPER: Parse spécifications de manière robuste
+  static List<ProductSpecification> _parseSpecifications(dynamic specsData) {
+    if (specsData == null) return [];
+    
+    if (specsData is List) {
+      return specsData
+          .where((spec) => spec != null && spec is Map<String, dynamic>)
+          .map((spec) {
+            try {
+              return ProductSpecification.fromJson(spec as Map<String, dynamic>);
+            } catch (e) {
+              debugPrint('❌ Erreur parsing spécification: $e');
+              return null;
+            }
+          })
+          .where((spec) => spec != null)
+          .cast<ProductSpecification>()
+          .toList();
+    }
+    
+    return [];
   }
 
   // Image principale

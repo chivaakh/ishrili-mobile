@@ -1,6 +1,6 @@
-// services/product_service.dart - CORRECTION URL ÉMULATEUR ✅
+// services/product_service.dart - VERSION CORRIGÉE SANS ERREURS ✅
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart'; // ← AJOUTÉ pour debugPrint
 import '../models/product_model.dart';
 import '../models/product_image_model.dart';
 import '../models/product_specification_model.dart';
@@ -8,18 +8,6 @@ import 'api_service.dart';
 
 class ProductService {
   final ApiService _apiService = ApiService();
-
-  // ✅ MÉTHODE POUR CORRIGER L'URL ÉMULATEUR
-  String _fixUrlForEmulator(String url) {
-    if (url.isEmpty) return url;
-    
-    // Remplacer localhost et 127.0.0.1 par 10.0.2.2 pour l'émulateur Android
-    return url
-        .replaceAll('http://localhost:', 'http://10.0.2.2:')
-        .replaceAll('http://127.0.0.1:', 'http://10.0.2.2:')
-        .replaceAll('https://localhost:', 'http://10.0.2.2:')
-        .replaceAll('https://127.0.0.1:', 'http://10.0.2.2:');
-  }
 
   // 📦 GESTION DES PRODUITS
   
@@ -94,7 +82,7 @@ class ProductService {
     }
   }
 
-  /// Supprimer un produit
+  /// ✅ NOUVELLE MÉTHODE : Supprimer un produit
   Future<bool> deleteProduct(int productId) async {
     try {
       await _apiService.delete('/produits/$productId/');
@@ -104,7 +92,7 @@ class ProductService {
     }
   }
 
-  /// Mettre à jour un produit
+  /// ✅ NOUVELLE MÉTHODE : Mettre à jour un produit
   Future<Product> updateProduct(int productId, {
     String? nom,
     String? description,
@@ -125,20 +113,16 @@ class ProductService {
     }
   }
 
-  /// ✅ Upload d'image avec CORRECTION URL
+  /// ✅ Upload d'image avec debug amélioré (UNIQUE)
   Future<String> uploadImage(File imageFile) async {
     try {
       debugPrint('📸 Upload image: ${imageFile.path}');
       final response = await _apiService.uploadImage('/upload-image/', imageFile);
       
-      // ✅ CORRECTION: Récupérer l'URL et la corriger pour l'émulateur
-      final originalUrl = response['url'] as String? ?? '';
-      final correctedUrl = _fixUrlForEmulator(originalUrl);
+      final imageUrl = response['url'];
+      debugPrint('🔗 URL reçue: $imageUrl');
       
-      debugPrint('🔗 URL originale: $originalUrl');
-      debugPrint('🔗 URL corrigée: $correctedUrl');
-      
-      return correctedUrl;
+      return imageUrl;
     } catch (e) {
       debugPrint('❌ Erreur upload: $e');
       throw Exception('Erreur lors de l\'upload de l\'image: $e');
