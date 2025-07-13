@@ -1,9 +1,12 @@
-// screens/vendor/orders_screen.dart - INTERFACE COMPLÈTE
+// screens/vendor/orders_screen.dart - VERSION COMPLÈTE AVEC IMAGES
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/order_provider.dart';
 import '../../models/order_model.dart';
+import '../../widgets/image_widget.dart';
 import 'order_detail_screen.dart';
+import 'order_history_screen.dart';
+import 'todays_orders_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -15,22 +18,23 @@ class OrdersScreen extends StatefulWidget {
 class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   
+  // ✅ Statuts EXACTS de votre API
   final List<String> _statusFilters = [
     'Toutes',
     'en_attente',
-    'confirme', 
-    'expedie',
-    'livre',
-    'annule'
+    'confirmee',
+    'expediee',
+    'livree',
+    'annulee'
   ];
 
   final Map<String, String> _statusLabels = {
     'Toutes': 'Toutes',
     'en_attente': 'En attente',
-    'confirme': 'Confirmées',
-    'expedie': 'Expédiées',
-    'livre': 'Livrées',
-    'annule': 'Annulées',
+    'confirmee': 'Confirmées',
+    'expediee': 'Expédiées',
+    'livree': 'Livrées',
+    'annulee': 'Annulées',
   };
 
   @override
@@ -41,6 +45,7 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
     // Charger les commandes au démarrage
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final orderProvider = context.read<OrderProvider>();
+      print('🚀 CHARGEMENT INITIAL DES COMMANDES...');
       orderProvider.loadOrders(refresh: true);
       orderProvider.loadOrderStats();
     });
@@ -62,6 +67,21 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
           ),
         ),
         centerTitle: false,
+        // 🔥 BOUTON COMMANDES D'AUJOURD'HUI
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.today, color: Colors.blue),
+            tooltip: 'Commandes d\'aujourd\'hui',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const TodaysOrdersScreen(),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -75,12 +95,26 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
           )).toList(),
           onTap: (index) {
             final status = _statusFilters[index] == 'Toutes' ? null : _statusFilters[index];
+            print('🎯 TAB CLICKED: Index=$index, Status="$status"');
+            
+            // Afficher un indicateur de chargement
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Chargement des commandes ${_statusLabels[_statusFilters[index]]?.toLowerCase() ?? 'toutes'}...'),
+                duration: const Duration(seconds: 1),
+                backgroundColor: Colors.blue,
+              ),
+            );
+            
             context.read<OrderProvider>().loadOrders(status: status, refresh: true);
           },
         ),
       ),
       body: Column(
         children: [
+          // Indicateur de nombre total de commandes
+          _buildOrderCountBanner(),
+          
           // Statistiques rapides
           _buildStatsRow(),
           
@@ -88,10 +122,22 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
           Expanded(
             child: Consumer<OrderProvider>(
               builder: (context, orderProvider, child) {
+                print('🎯 RENDER - Provider orders: ${orderProvider.orders.length}');
+                
                 if (orderProvider.isLoading && orderProvider.orders.isEmpty) {
                   return const Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Récupération de toutes les commandes...',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -101,21 +147,22 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                        const Icon(Icons.error_outline, size: 48, color: Colors.red),
                         const SizedBox(height: 16),
                         Text(
                           'Erreur: ${orderProvider.errorMessage}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.grey),
+                          style: const TextStyle(color: Colors.red),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton(
+                        ElevatedButton.icon(
                           onPressed: () => orderProvider.loadOrders(refresh: true),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Réessayer'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black87,
+                            backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                           ),
-                          child: const Text('Réessayer'),
                         ),
                       ],
                     ),
@@ -138,6 +185,16 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
                           _getCurrentStatusLabel(),
                           style: const TextStyle(color: Colors.grey),
                         ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => orderProvider.loadOrders(refresh: true),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Actualiser'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -150,7 +207,7 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
                     itemCount: orderProvider.orders.length,
                     itemBuilder: (context, index) {
                       final order = orderProvider.orders[index];
-                      return _buildOrderCard(order);
+                      return _buildOrderCard(order, index);
                     },
                   ),
                 );
@@ -159,6 +216,57 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
           ),
         ],
       ),
+    );
+  }
+
+  // 🔥 NOUVEAU : Bannière avec le nombre de commandes
+  Widget _buildOrderCountBanner() {
+    return Consumer<OrderProvider>(
+      builder: (context, orderProvider, child) {
+        if (orderProvider.orders.isEmpty && !orderProvider.isLoading) {
+          return const SizedBox();
+        }
+        
+        final currentStatus = _statusFilters[_tabController.index];
+        final statusLabel = _statusLabels[currentStatus] ?? currentStatus;
+        
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            border: Border(
+              bottom: BorderSide(color: Colors.blue[200]!, width: 1),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.blue[600]),
+              const SizedBox(width: 8),
+              Text(
+                orderProvider.isLoading 
+                    ? 'Chargement...'
+                    : '${orderProvider.orders.length} commandes ${statusLabel.toLowerCase()}',
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+              if (!orderProvider.isLoading) ...[
+                const Spacer(),
+                Text(
+                  'Total: ${orderProvider.totalOrders}',
+                  style: TextStyle(
+                    color: Colors.blue[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -233,10 +341,19 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
     );
   }
 
-  Widget _buildOrderCard(Order order) {
+Widget _buildOrderCard(Order order, int index) {
+    // 🔥 RÉCUPÉRATION DE L'IMAGE DU PREMIER PRODUIT - VERSION CORRIGÉE
+   // ✅ NOUVEAU CODE 
+String? imageUrl;
+if (order.details.isNotEmpty) {
+  final firstDetail = order.details.first;
+  // imagePrincipale retourne directement une String (URL complète)
+  imageUrl = firstDetail.imagePrincipale;
+}
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () => _navigateToOrderDetail(order),
@@ -250,88 +367,179 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Commande #${order.id}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  _buildStatusChip(order.statut),
-                ],
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Informations client
-              Row(
-                children: [
-                  const Icon(Icons.person_outline, size: 16, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Client #${order.clientId}',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 4),
-              
-              // Date et montant
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
                   Row(
                     children: [
-                      const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
                       Text(
-                        _formatDate(order.dateCommande),
-                        style: const TextStyle(color: Colors.grey),
+                        'Commande #${order.id}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '${order.details.length} produit${order.details.length > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  Text(
-                    '${order.montantTotal.toStringAsFixed(0)} MRU',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: Colors.green,
-                    ),
+                  Row(
+                    children: [
+                      _buildStatusChip(order.statut),
+                      const SizedBox(width: 8),
+                      // 🔥 BOUTON HISTORIQUE
+                      InkWell(
+                        onTap: () => _navigateToOrderHistory(order),
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            Icons.history,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
               
               const SizedBox(height: 12),
               
-              // Actions rapides
-              if (order.statut == 'en_attente')
+              // 🔥 SECTION PRODUIT AVEC IMAGE
+              if (order.details.isNotEmpty) ...[
                 Row(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _updateOrderStatus(order, 'annule'),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.red),
-                          foregroundColor: Colors.red,
-                        ),
-                        child: const Text('Refuser'),
-                      ),
+                    // Image du premier produit
+                    ImageWidget(
+                      imageUrl: imageUrl,
+                      width: 50,
+                      height: 50,
+                      fit: BoxFit.cover,
                     ),
-                    const SizedBox(width: 8),
+                    
+                    const SizedBox(width: 12),
+                    
+                    // Informations du premier produit
                     Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () => _updateOrderStatus(order, 'confirme'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('Confirmer'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order.details.first.specification.nom,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Qté: ${order.details.first.quantite}${order.details.length > 1 ? ' (+${order.details.length - 1} autres)' : ''}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+                
+                const SizedBox(height: 12),
+              ],
+              
+              // Informations client et date
+              Row(
+                children: [
+                  const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      order.clientNomComplet,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatDate(order.dateCommande),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Montant et actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${order.montantTotal.toStringAsFixed(0)} MRU',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      color: Colors.green,
+                    ),
+                  ),
+                  
+                  // Actions rapides selon le statut
+                  if (order.statut == 'en_attente') ...[
+                    Row(
+                      children: [
+                        OutlinedButton(
+                          onPressed: () => _updateOrderStatus(order, 'annulee'),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.red),
+                            foregroundColor: Colors.red,
+                            minimumSize: const Size(60, 32),
+                          ),
+                          child: const Text('Refuser', style: TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () => _updateOrderStatus(order, 'confirmee'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(80, 32),
+                          ),
+                          child: const Text('Confirmer', style: TextStyle(fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    ElevatedButton.icon(
+                      onPressed: () => _navigateToOrderDetail(order),
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text('Détails', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(100, 32),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -350,22 +558,22 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
         textColor = Colors.orange[800]!;
         label = 'En attente';
         break;
-      case 'confirme':
+      case 'confirmee':
         backgroundColor = Colors.blue[100]!;
         textColor = Colors.blue[800]!;
         label = 'Confirmée';
         break;
-      case 'expedie':
+      case 'expediee':
         backgroundColor = Colors.purple[100]!;
         textColor = Colors.purple[800]!;
         label = 'Expédiée';
         break;
-      case 'livre':
+      case 'livree':
         backgroundColor = Colors.green[100]!;
         textColor = Colors.green[800]!;
         label = 'Livrée';
         break;
-      case 'annule':
+      case 'annulee':
         backgroundColor = Colors.red[100]!;
         textColor = Colors.red[800]!;
         label = 'Annulée';
@@ -386,7 +594,7 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
         label,
         style: TextStyle(
           color: textColor,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -398,13 +606,13 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
     final difference = now.difference(date);
 
     if (difference.inDays == 0) {
-      return 'Aujourd\'hui ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
     } else if (difference.inDays == 1) {
       return 'Hier';
     } else if (difference.inDays < 7) {
-      return 'Il y a ${difference.inDays} jours';
+      return 'Il y a ${difference.inDays}j';
     } else {
-      return '${date.day}/${date.month}/${date.year}';
+      return '${date.day}/${date.month}';
     }
   }
 
@@ -421,6 +629,16 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
 
   Future<void> _updateOrderStatus(Order order, String newStatus) async {
     final orderProvider = context.read<OrderProvider>();
+    
+    // Afficher un indicateur de chargement
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Mise à jour du statut...'),
+        duration: Duration(seconds: 1),
+        backgroundColor: Colors.blue,
+      ),
+    );
+    
     final success = await orderProvider.updateOrderStatus(order.id, newStatus);
     
     if (mounted) {
@@ -442,6 +660,15 @@ class _OrdersScreenState extends State<OrdersScreen> with TickerProviderStateMix
       context,
       MaterialPageRoute(
         builder: (context) => OrderDetailScreen(order: order),
+      ),
+    );
+  }
+
+  void _navigateToOrderHistory(Order order) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => OrderHistoryScreen(order: order),
       ),
     );
   }

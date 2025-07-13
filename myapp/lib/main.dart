@@ -1,4 +1,4 @@
-// main.dart - VERSION DIRECTE DASHBOARD 🌙
+// main.dart - VERSION FINALE AVEC NOUVELLES PAGES 🌙
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -10,12 +10,18 @@ import 'providers/category_provider.dart';
 import 'providers/order_provider.dart';
 import 'providers/auth_provider.dart';
 
-// Screens
+// Screens existants
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
 import 'screens/vendor/vendor_main_screen.dart';
+
+// 🔥 AJOUT : Nouvelles pages de commandes
+import 'screens/vendor/orders_screen.dart';
+import 'screens/vendor/todays_orders_screen.dart';
+import 'screens/vendor/order_detail_screen.dart';
+import 'screens/vendor/order_history_screen.dart';
 
 // Services
 import 'services/api_client.dart';
@@ -47,7 +53,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => VendorProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
-        ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()), // ✅ Déjà présent
       ],
       child: MaterialApp(
         title: 'Ishrili Vendeur',
@@ -70,12 +76,12 @@ class MyApp extends StatelessWidget {
             elevation: 0,
             systemOverlayStyle: SystemUiOverlayStyle.dark,
             titleTextStyle: TextStyle(
-              color: AppTheme.textPrimary,  // ✅ Corrigé: textDark → textPrimary
+              color: AppTheme.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
             iconTheme: IconThemeData(
-              color: AppTheme.textPrimary,  // ✅ Corrigé: textDark → textPrimary
+              color: AppTheme.textPrimary,
               size: 22,
             ),
           ),
@@ -98,7 +104,7 @@ class MyApp extends StatelessWidget {
           ),
           
           // 📄 Card Theme élégant
-          cardTheme: CardTheme(
+          cardTheme: CardThemeData(
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -131,7 +137,7 @@ class MyApp extends StatelessWidget {
           bottomNavigationBarTheme: const BottomNavigationBarThemeData(
             backgroundColor: Colors.white,
             selectedItemColor: AppTheme.zaffre,
-            unselectedItemColor: AppTheme.textSecondary,  // ✅ Corrigé: textLight → textSecondary
+            unselectedItemColor: AppTheme.textSecondary,
             elevation: 0,
             type: BottomNavigationBarType.fixed,
           ),
@@ -152,11 +158,9 @@ class MyApp extends StatelessWidget {
         ),
         
         // ✅ NAVIGATION DIRECTE VERS LE DASHBOARD
-        // Cette modification affiche directement le VendorMainScreen
-        // qui contient votre dashboard vendeur
         home: const VendorMainScreen(),
         
-        // ✅ Routes pour navigation future
+        // ✅ Routes mises à jour avec les nouvelles pages
         routes: {
           '/login': (context) => LoginScreen(),
           '/signup': (context) => SignupScreen(),
@@ -167,6 +171,35 @@ class MyApp extends StatelessWidget {
           },
           '/vendor': (context) => const VendorMainScreen(),
           '/splash': (context) => const SplashScreen(),
+          
+          // 🔥 NOUVELLES ROUTES POUR LES COMMANDES
+          '/orders': (context) => const OrdersScreen(),
+          '/todays-orders': (context) => const TodaysOrdersScreen(),
+          // Note: order-detail et order-history utilisent Navigator.push avec des paramètres
+        },
+        
+        // 🔥 GESTION AVANCÉE DES ROUTES (optionnel)
+        onGenerateRoute: (settings) {
+          // Pour les routes qui nécessitent des paramètres
+          switch (settings.name) {
+            case '/order-detail':
+              if (settings.arguments is Map) {
+                final args = settings.arguments as Map<String, dynamic>;
+                return MaterialPageRoute(
+                  builder: (_) => OrderDetailScreen(order: args['order']),
+                );
+              }
+              break;
+            case '/order-history':
+              if (settings.arguments is Map) {
+                final args = settings.arguments as Map<String, dynamic>;
+                return MaterialPageRoute(
+                  builder: (_) => OrderHistoryScreen(order: args['order']),
+                );
+              }
+              break;
+          }
+          return null; // Utilise les routes définies dans routes: {}
         },
       ),
     );

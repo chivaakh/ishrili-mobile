@@ -1,0 +1,4 @@
+*.dart text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.yaml text eol=lf

@@ -1,8 +1,9 @@
-// screens/vendor/order_detail_screen.dart - NOUVEAU FICHIER
+// screens/vendor/order_detail_screen.dart - AVEC IMAGES FALLBACK
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/order_model.dart';
 import '../../providers/order_provider.dart';
+import '../../widgets/image_widget.dart';
 
 class OrderDetailScreen extends StatelessWidget {
   final Order order;
@@ -142,7 +143,7 @@ class OrderDetailScreen extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildInfoRow(Icons.person_outline, 'Client', 'Client #${order.clientId}'),
+          _buildInfoRow(Icons.person_outline, 'Client', order.clientNomComplet),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.location_on_outlined, 'Adresse', 'Adresse de livraison'), // TODO: Vraie adresse
           const SizedBox(height: 12),
@@ -182,7 +183,7 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProductsList() {
+Widget _buildProductsList() {
     if (order.details.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -199,6 +200,13 @@ class OrderDetailScreen extends StatelessWidget {
 
     return Column(
       children: order.details.map((detail) {
+        // 🔥 STRATÉGIE IMAGES CORRIGÉE
+        String? imageUrl;
+        
+        // ✅ imagePrincipale retourne directement une String (URL)
+        imageUrl = detail.imagePrincipale ?? detail.imageUrlFallback;
+        print('🖼️ Image pour ${detail.specification.nom}: $imageUrl');
+        
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -208,18 +216,12 @@ class OrderDetailScreen extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Image produit placeholder
-              Container(
+              // 🔥 IMAGE DU PRODUIT AVEC FALLBACK
+              ImageWidget(
+                imageUrl: imageUrl,
                 width: 60,
                 height: 60,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.image_outlined,
-                  color: Colors.grey,
-                ),
+                fit: BoxFit.cover,
               ),
               
               const SizedBox(width: 16),
@@ -230,7 +232,7 @@ class OrderDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Produit #${detail.specification.produitId}', // TODO: Nom du produit
+                      detail.specification.nom,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -238,11 +240,13 @@ class OrderDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      detail.specification.nom,
+                      detail.specification.description,
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 12,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -326,7 +330,7 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    if (order.statut == 'livre' || order.statut == 'annule') {
+    if (order.statut == 'livree' || order.statut == 'annulee') {
       return const SizedBox(); // Pas d'actions pour les commandes terminées
     }
 
@@ -337,7 +341,7 @@ class OrderDetailScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => _updateOrderStatus(context, 'annule'),
+                  onPressed: () => _updateOrderStatus(context, 'annulee'),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.red),
                     foregroundColor: Colors.red,
@@ -350,7 +354,7 @@ class OrderDetailScreen extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: ElevatedButton(
-                  onPressed: () => _updateOrderStatus(context, 'confirme'),
+                  onPressed: () => _updateOrderStatus(context, 'confirmee'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
@@ -363,11 +367,11 @@ class OrderDetailScreen extends StatelessWidget {
           ),
         ],
         
-        if (order.statut == 'confirme') ...[
+        if (order.statut == 'confirmee') ...[
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _updateOrderStatus(context, 'expedie'),
+              onPressed: () => _updateOrderStatus(context, 'expediee'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -378,11 +382,11 @@ class OrderDetailScreen extends StatelessWidget {
           ),
         ],
         
-        if (order.statut == 'expedie') ...[
+        if (order.statut == 'expediee') ...[
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _updateOrderStatus(context, 'livre'),
+              onPressed: () => _updateOrderStatus(context, 'livree'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -407,22 +411,22 @@ class OrderDetailScreen extends StatelessWidget {
         textColor = Colors.orange[800]!;
         label = 'En attente';
         break;
-      case 'confirme':
+      case 'confirmee':
         backgroundColor = Colors.blue[100]!;
         textColor = Colors.blue[800]!;
         label = 'Confirmée';
         break;
-      case 'expedie':
+      case 'expediee':
         backgroundColor = Colors.purple[100]!;
         textColor = Colors.purple[800]!;
         label = 'Expédiée';
         break;
-      case 'livre':
+      case 'livree':
         backgroundColor = Colors.green[100]!;
         textColor = Colors.green[800]!;
         label = 'Livrée';
         break;
-      case 'annule':
+      case 'annulee':
         backgroundColor = Colors.red[100]!;
         textColor = Colors.red[800]!;
         label = 'Annulée';
